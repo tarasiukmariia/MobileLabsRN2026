@@ -1,8 +1,12 @@
 import { NavigationContainer } from "@react-navigation/native";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
-import { View, Text, Image, StyleSheet, SafeAreaView } from "react-native";
+import { View, Text, Image, StyleSheet } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import NewsScreen from "./screens/NewsScreen";
+import GalleryScreen from './screens/GalleryScreen';
+import ProfileScreen from './screens/ProfileScreen';
+import { SafeAreaView, SafeAreaProvider } from "react-native-safe-area-context"; 
+
 
 const Tab = createBottomTabNavigator();
 
@@ -19,36 +23,40 @@ const CustomHeader = () => (
 
 export default function App() {
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <CustomHeader />
-      <NavigationContainer>
-        <Tab.Navigator
-          screenOptions={({ route }) => ({
-            tabBarIcon: ({ focused, color, size }) => {
-              let iconName;
-              if (route.name === "Головна")
-                iconName = focused ? "home" : "home-outline";
-              else if (route.name === "Фотогалерея")
-                iconName = focused ? "images" : "images-outline";
-              else if (route.name === "Профіль")
-                iconName = focused ? "person" : "person-outline";
-              return <Ionicons name={iconName} size={size} color={color} />;
-            },
-            tabBarActiveTintColor: "#007AFF",
-            tabBarInactiveTintColor: "gray",
-            headerShown: false,
-          })}
-        >
-          <Tab.Screen name="Головна" component={NewsScreen} />
-        </Tab.Navigator>
-      </NavigationContainer>
+    <SafeAreaProvider>
+      <SafeAreaView style={styles.safeArea}>
+        <CustomHeader />
+        <NavigationContainer>
+          <Tab.Navigator
+            screenOptions={({ route }) => ({
+              tabBarIcon: ({ focused, color, size }) => {
+                let iconName;
+                if (route.name === "Головна")
+                  iconName = focused ? "home" : "home-outline";
+                else if (route.name === "Фотогалерея")
+                  iconName = focused ? "images" : "images-outline";
+                else if (route.name === "Профіль")
+                  iconName = focused ? "person" : "person-outline";
+                return <Ionicons name={iconName} size={size} color={color} />;
+              },
+              tabBarActiveTintColor: "#007AFF",
+              tabBarInactiveTintColor: "gray",
+              headerShown: false,
+            })}
+          >
+            <Tab.Screen name="Головна" component={NewsScreen} />
+            <Tab.Screen name="Фотогалерея" component={GalleryScreen} />
+            <Tab.Screen name="Профіль" component={ProfileScreen} />
+          </Tab.Navigator>
+        </NavigationContainer>
 
-      <View style={styles.footer}>
-        <Text style={styles.footerText}>
-          Тарасюк Марія Олександрівна, ВТ-22-1
-        </Text>
-      </View>
-    </SafeAreaView>
+        <View style={styles.footer}>
+          <Text style={styles.footerText}>
+            Тарасюк Марія Олександрівна, ВТ-22-1
+          </Text>
+        </View>
+      </SafeAreaView>
+    </SafeAreaProvider>
   );
 }
 
