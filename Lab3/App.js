@@ -9,6 +9,7 @@ import { lightTheme, darkTheme } from "./src/theme/theme";
 import PlayScreen from "./src/screens/PlayScreen";
 import ChallengesScreen from "./src/screens/ChallengesScreen";
 import SettingsScreen from "./src/screens/SettingsScreen";
+import { GameProvider } from "./src/context/GameContext";
 
 const Tab = createBottomTabNavigator();
 
@@ -24,45 +25,47 @@ export default function App() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <ThemeProvider theme={currentTheme}>
-        <NavigationContainer>
-          <Tab.Navigator
-            screenOptions={({ route }) => ({
-              tabBarIcon: ({ focused, color, size }) => {
-                let iconName;
-                if (route.name === "Гра")
-                  iconName = focused ? "play-circle" : "play-circle-outline";
-                else if (route.name === "Завдання")
-                  iconName = focused ? "list" : "list-outline";
-                else if (route.name === "Налаштування")
-                  iconName = focused ? "settings" : "settings-outline";
-                return <Ionicons name={iconName} size={size} color={color} />;
-              },
-              tabBarActiveTintColor: currentTheme.primary,
-              tabBarInactiveTintColor: currentTheme.textSecondary,
-              tabBarStyle: {
-                backgroundColor: currentTheme.surface,
-                borderTopColor: currentTheme.border,
-              },
-              headerStyle: {
-                backgroundColor: currentTheme.surface,
-                shadowColor: "transparent",
-                elevation: 0,
-              },
-              headerTintColor: currentTheme.text,
-            })}
-          >
-            <Tab.Screen name="Гра" component={PlayScreen} />
-            <Tab.Screen name="Завдання" component={ChallengesScreen} />
-            <Tab.Screen name="Налаштування">
-              {() => (
-                <SettingsScreen
-                  toggleTheme={toggleTheme}
-                  isDarkMode={isDarkMode}
-                />
-              )}
-            </Tab.Screen>
-          </Tab.Navigator>
-        </NavigationContainer>
+        <GameProvider>
+          <NavigationContainer>
+            <Tab.Navigator
+              screenOptions={({ route }) => ({
+                tabBarIcon: ({ focused, color, size }) => {
+                  let iconName;
+                  if (route.name === "Гра")
+                    iconName = focused ? "play-circle" : "play-circle-outline";
+                  else if (route.name === "Завдання")
+                    iconName = focused ? "list" : "list-outline";
+                  else if (route.name === "Налаштування")
+                    iconName = focused ? "settings" : "settings-outline";
+                  return <Ionicons name={iconName} size={size} color={color} />;
+                },
+                tabBarActiveTintColor: currentTheme.primary,
+                tabBarInactiveTintColor: currentTheme.textSecondary,
+                tabBarStyle: {
+                  backgroundColor: currentTheme.surface,
+                  borderTopColor: currentTheme.border,
+                },
+                headerStyle: {
+                  backgroundColor: currentTheme.surface,
+                  shadowColor: "transparent",
+                  elevation: 0,
+                },
+                headerTintColor: currentTheme.text,
+              })}
+            >
+              <Tab.Screen name="Гра" component={PlayScreen} />
+              <Tab.Screen name="Завдання" component={ChallengesScreen} />
+              <Tab.Screen name="Налаштування">
+                {() => (
+                  <SettingsScreen
+                    toggleTheme={toggleTheme}
+                    isDarkMode={isDarkMode}
+                  />
+                )}
+              </Tab.Screen>
+            </Tab.Navigator>
+          </NavigationContainer>
+        </GameProvider>
       </ThemeProvider>
     </GestureHandlerRootView>
   );
