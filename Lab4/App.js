@@ -9,20 +9,17 @@ import {
   StatusBar,
   SafeAreaView,
   Platform,
+  Modal,
+  TextInput,
+  Alert,
+  Button,
 } from "react-native";
 import * as FileSystem from "expo-file-system/legacy";
 import { Ionicons } from "@expo/vector-icons";
+import MemoryStats from "./src/components/MemoryStats";
+import FileItem from "./src/components/FileItem";
 
 const BASE_DIR = FileSystem.documentDirectory + "MyFiles/";
-
-const formatBytes = (bytes, decimals = 2) => {
-  if (!+bytes) return "0 Bytes";
-  const k = 1024;
-  const dm = decimals < 0 ? 0 : decimals;
-  const sizes = ["Bytes", "KB", "MB", "GB", "TB"];
-  const i = Math.floor(Math.log(bytes) / Math.log(k));
-  return `${parseFloat((bytes / Math.pow(k, i)).toFixed(dm))} ${sizes[i]}`;
-};
 
 export default function App() {
   const [currentPath, setCurrentPath] = useState("");
@@ -35,26 +32,33 @@ export default function App() {
     used: 0,
   });
 
+  const [createModalVisible, setCreateModalVisible] = useState(false);
+  const [createType, setCreateType] = useState("folder");
+  const [newItemName, setNewItemName] = useState("");
+  const [newItemContent, setNewItemContent] = useState("");
+
+  const [editorModalVisible, setEditorModalVisible] = useState(false);
+  const [currentEditingFile, setCurrentEditingFile] = useState(null);
+  const [editorContent, setEditorContent] = useState("");
+
   useEffect(() => {
     initApp();
-    loadMemoryStats();
   }, []);
-
   useEffect(() => {
     if (currentPath) {
       loadDirectory(currentPath);
+      loadMemoryStats();
     }
   }, [currentPath]);
 
   const initApp = async () => {
     try {
       const dirInfo = await FileSystem.getInfoAsync(BASE_DIR);
-      if (!dirInfo.exists) {
+      if (!dirInfo.exists)
         await FileSystem.makeDirectoryAsync(BASE_DIR, { intermediates: true });
-      }
       setCurrentPath(BASE_DIR);
     } catch (error) {
-      console.error("Помилка створення базової директорії:", error);
+      console.error("Помилка ініціалізації:", error);
     }
   };
 
@@ -62,14 +66,8 @@ export default function App() {
     try {
       const free = await FileSystem.getFreeDiskStorageAsync();
       const total = await FileSystem.getTotalDiskCapacityAsync();
-      setMemoryStats({
-        total,
-        free,
-        used: total - free,
-      });
-    } catch (error) {
-      console.error("Помилка читання пам'яті:", error);
-    }
+      setMemoryStats({ total, free, used: total - free });
+    } catch (error) {}
   };
 
   const loadDirectory = async (path) => {
@@ -79,11 +77,7 @@ export default function App() {
       const fileInfos = await Promise.all(
         fileNames.map(async (name) => {
           const info = await FileSystem.getInfoAsync(path + name);
-          return {
-            name,
-            uri: path + name,
-            isDirectory: info.isDirectory,
-          };
+          return { name, uri: path + name, isDirectory: info.isDirectory };
         }),
       );
       fileInfos.sort((a, b) => {
@@ -91,17 +85,102 @@ export default function App() {
           return a.name.localeCompare(b.name);
         return a.isDirectory ? -1 : 1;
       });
-
       setFiles(fileInfos);
-    } catch (error) {
-      console.error("Помилка читання директорії:", error);
-    }
+    } catch (error) {}
     setLoading(false);
   };
 
-  const handlePressFolder = (folderName) => {
-    setPathHistory([...pathHistory, currentPath]);
-    setCurrentPath(currentPath + folderName + "/");
+  const handleCreate = async () => {
+    if (!newItemName.trim()) return Alert.alert("Помилка", "Введіть назву!");
+    try {
+      if (createType === "folder") {
+        await FileSystem.makeDirectoryAsync(currentPath + newItemName);
+      } else {
+        const fileName = newItemName.endsWith(".txt")
+          ? newItemName
+          : newItemName + ".txt";
+        await FileSystem.writeAsStringAsync(
+          currentPath + fileName,
+          newItemContent,
+        );
+      }
+      setCreateModalVisible(false);
+      setNewItemName("");
+      setNewItemContent("");
+      loadDirectory(currentPath);
+    } catch (error) {
+      Alert.alert("Помилка", "Не вдалося створити об'єкт");
+    }
+  };
+
+  const handleOpenFile = async (item) => {
+    if (item.isDirectory) {
+      setPathHistory([...pathHistory, currentPath]);
+      setCurrentPath(item.uri + "/");
+    } else if (item.name.endsWith(".txt")) {
+      try {
+        const content = await FileSystem.readAsStringAsync(item.uri);
+        setEditorContent(content);
+        setCurrentEditingFile(item);
+        setEditorModalVisible(true);
+      } catch (error) {
+        Alert.alert("Помилка", "Не вдалося прочитати файл");
+      }
+    } else {
+      Alert.alert("Увага", "Цей застосунок читає лише .txt файли");
+    }
+  };
+
+  const handleSaveFile = async () => {
+    try {
+      await FileSystem.writeAsStringAsync(
+        currentEditingFile.uri,
+        editorContent,
+      );
+      setEditorModalVisible(false);
+      Alert.alert("Успіх", "Файл збережено!");
+      loadMemoryStats();
+    } catch (error) {}
+  };
+
+  const handleLongPress = (item) => {
+    Alert.alert(item.name, "Оберіть дію", [
+      { text: "Інформація", onPress: () => showFileInfo(item) },
+      {
+        text: "Видалити",
+        onPress: () => confirmDelete(item),
+        style: "destructive",
+      },
+      { text: "Скасувати", style: "cancel" },
+    ]);
+  };
+
+  const confirmDelete = (item) => {
+    Alert.alert("Підтвердження", `Видалити ${item.name}?`, [
+      { text: "Скасувати", style: "cancel" },
+      {
+        text: "Видалити",
+        style: "destructive",
+        onPress: async () => {
+          try {
+            await FileSystem.deleteAsync(item.uri);
+            loadDirectory(currentPath);
+          } catch (error) {}
+        },
+      },
+    ]);
+  };
+
+  const showFileInfo = async (item) => {
+    try {
+      const info = await FileSystem.getInfoAsync(item.uri, { size: true });
+      const date = new Date(info.modificationTime * 1000).toLocaleString();
+      const ext = item.isDirectory ? "Папка" : item.name.split(".").pop();
+      Alert.alert(
+        "Інформація",
+        `Назва: ${item.name}\nТип: ${ext}\nРозмір: ${info.size} байт\nЗмінено: ${date}`,
+      );
+    } catch (error) {}
   };
 
   const handleGoBack = () => {
@@ -112,30 +191,6 @@ export default function App() {
     setCurrentPath(prevPath);
   };
 
-  const renderItem = ({ item }) => (
-    <TouchableOpacity
-      style={styles.fileItem}
-      onPress={() =>
-        item.isDirectory
-          ? handlePressFolder(item.name)
-          : alert("Роботу з файлами додамо в наступному коміті!")
-      }
-    >
-      <Ionicons
-        name={item.isDirectory ? "folder" : "document-text"}
-        size={24}
-        color={item.isDirectory ? "#FFD700" : "#007AFF"}
-      />
-      <Text style={styles.fileName}>{item.name}</Text>
-      <Ionicons
-        name="chevron-forward"
-        size={16}
-        color="#ccc"
-        style={{ marginLeft: "auto" }}
-      />
-    </TouchableOpacity>
-  );
-
   const displayPath = currentPath
     ? currentPath.replace(BASE_DIR, "Root/")
     : "Loading...";
@@ -143,19 +198,7 @@ export default function App() {
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="#f5f5f5" />
-
-      <View style={styles.statsContainer}>
-        <Text style={styles.statsTitle}>Статистика пам'яті пристрою</Text>
-        <Text style={styles.statsText}>
-          Всього: {formatBytes(memoryStats.total)}
-        </Text>
-        <Text style={styles.statsText}>
-          Використано: {formatBytes(memoryStats.used)}
-        </Text>
-        <Text style={styles.statsText}>
-          Вільно: {formatBytes(memoryStats.free)}
-        </Text>
-      </View>
+      <MemoryStats stats={memoryStats} />
       <View style={styles.navHeader}>
         {pathHistory.length > 0 ? (
           <TouchableOpacity onPress={handleGoBack} style={styles.backButton}>
@@ -168,7 +211,7 @@ export default function App() {
           {displayPath}
         </Text>
       </View>
-      {loading || !currentPath ? (
+      {loading ? (
         <ActivityIndicator
           size="large"
           color="#007AFF"
@@ -180,10 +223,100 @@ export default function App() {
         <FlatList
           data={files}
           keyExtractor={(item) => item.uri}
-          renderItem={renderItem}
+          renderItem={({ item }) => (
+            <FileItem
+              item={item}
+              onPress={() => handleOpenFile(item)}
+              onLongPress={() => handleLongPress(item)}
+            />
+          )}
           ItemSeparatorComponent={() => <View style={styles.separator} />}
         />
       )}
+      <View style={styles.actionButtons}>
+        <TouchableOpacity
+          style={styles.btnCreateFolder}
+          onPress={() => {
+            setCreateType("folder");
+            setCreateModalVisible(true);
+          }}
+        >
+          <Ionicons name="folder-open" size={20} color="#fff" />
+          <Text style={styles.btnText}>Нова папка</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.btnCreateFile}
+          onPress={() => {
+            setCreateType("file");
+            setCreateModalVisible(true);
+          }}
+        >
+          <Ionicons name="document" size={20} color="#fff" />
+          <Text style={styles.btnText}>Новий файл</Text>
+        </TouchableOpacity>
+      </View>
+      <Modal visible={createModalVisible} animationType="slide" transparent>
+        <View style={styles.modalBg}>
+          <View style={styles.modalContainer}>
+            <Text style={styles.modalTitle}>
+              {createType === "folder"
+                ? "Створити папку"
+                : "Створити файл (.txt)"}
+            </Text>
+            <TextInput
+              style={styles.input}
+              placeholder="Назва"
+              value={newItemName}
+              onChangeText={setNewItemName}
+            />
+            {createType === "file" && (
+              <TextInput
+                style={[styles.input, styles.textArea]}
+                placeholder="Початковий текст"
+                value={newItemContent}
+                onChangeText={setNewItemContent}
+                multiline
+              />
+            )}
+            <View style={styles.modalButtons}>
+              <Button
+                title="Скасувати"
+                color="#888"
+                onPress={() => setCreateModalVisible(false)}
+              />
+              <Button title="Створити" onPress={handleCreate} />
+            </View>
+          </View>
+        </View>
+      </Modal>
+      <Modal visible={editorModalVisible} animationType="slide">
+        <SafeAreaView
+          style={{
+            flex: 1,
+            backgroundColor: "#fff",
+            paddingTop: Platform.OS === "android" ? StatusBar.currentHeight : 0,
+          }}
+        >
+          <View style={styles.editorHeader}>
+            <Button
+              title="Закрити"
+              color="#888"
+              onPress={() => setEditorModalVisible(false)}
+            />
+            <Text style={styles.editorTitle} numberOfLines={1}>
+              {currentEditingFile?.name}
+            </Text>
+            <Button title="Зберегти" onPress={handleSaveFile} />
+          </View>
+          <TextInput
+            style={styles.editorArea}
+            value={editorContent}
+            onChangeText={setEditorContent}
+            multiline
+            textAlignVertical="top"
+          />
+        </SafeAreaView>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -194,19 +327,6 @@ const styles = StyleSheet.create({
     backgroundColor: "#f5f5f5",
     paddingTop: Platform.OS === "android" ? StatusBar.currentHeight : 0,
   },
-  statsContainer: {
-    backgroundColor: "#fff",
-    padding: 15,
-    margin: 15,
-    borderRadius: 10,
-    elevation: 3,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-  },
-  statsTitle: { fontSize: 16, fontWeight: "bold", marginBottom: 5 },
-  statsText: { fontSize: 14, color: "#555", marginTop: 2 },
   navHeader: {
     flexDirection: "row",
     alignItems: "center",
@@ -223,13 +343,6 @@ const styles = StyleSheet.create({
     color: "#333",
     paddingRight: 15,
   },
-  fileItem: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#fff",
-    padding: 15,
-  },
-  fileName: { fontSize: 16, marginLeft: 15, color: "#333" },
   separator: { height: 1, backgroundColor: "#eee", marginLeft: 50 },
   emptyText: {
     textAlign: "center",
@@ -237,4 +350,71 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: "#888",
   },
+  actionButtons: {
+    flexDirection: "row",
+    padding: 15,
+    justifyContent: "space-between",
+    backgroundColor: "#fff",
+    borderTopWidth: 1,
+    borderTopColor: "#ddd",
+  },
+  btnCreateFolder: {
+    flex: 1,
+    flexDirection: "row",
+    backgroundColor: "#FFB300",
+    padding: 12,
+    borderRadius: 8,
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: 5,
+  },
+  btnCreateFile: {
+    flex: 1,
+    flexDirection: "row",
+    backgroundColor: "#007AFF",
+    padding: 12,
+    borderRadius: 8,
+    justifyContent: "center",
+    alignItems: "center",
+    marginLeft: 5,
+  },
+  btnText: { color: "#fff", fontWeight: "bold", marginLeft: 8 },
+  modalBg: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    justifyContent: "center",
+    padding: 20,
+  },
+  modalContainer: { backgroundColor: "#fff", padding: 20, borderRadius: 12 },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: "bold",
+    marginBottom: 15,
+    textAlign: "center",
+  },
+  input: {
+    borderWidth: 1,
+    borderColor: "#ccc",
+    padding: 10,
+    borderRadius: 8,
+    marginBottom: 15,
+    fontSize: 16,
+  },
+  textArea: { height: 100, textAlignVertical: "top" },
+  modalButtons: { flexDirection: "row", justifyContent: "space-between" },
+  editorHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    padding: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: "#ccc",
+  },
+  editorTitle: {
+    flex: 1,
+    textAlign: "center",
+    fontWeight: "bold",
+    fontSize: 16,
+  },
+  editorArea: { flex: 1, padding: 15, fontSize: 16, color: "#333" },
 });
