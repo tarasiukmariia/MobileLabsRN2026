@@ -1,50 +1,152 @@
-# Welcome to your Expo app 👋
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+# Лабораторна робота №5
 
-## Get started
+## Тема
+Побудова навігації у React Native із використанням Expo Router.
 
-1. Install dependencies
+---
 
-   ```bash
-   npm install
-   ```
+## Інструкція запуску
 
-2. Start the app
+1. Встановити Node.js  
+2. Встановити залежності:
+```bash
+npm install
+````
 
-   ```bash
-   npx expo start
-   ```
-
-In the output, you'll find options to open the app in a
-
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
-
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
-
-## Get a fresh project
-
-When you're ready, run:
+3. Запустити застосунок:
 
 ```bash
-npm run reset-project
+npx expo start
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+4. Відкрити:
 
-## Learn more
+* Expo Go (QR-код)
+* Android Emulator
+* iOS Simulator
 
-To learn more about developing your project with Expo, look at the following resources:
+---
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+## Реалізований функціонал
 
-## Join the community
+### Авторизація
 
-Join our community of developers creating universal apps.
+* Реалізовано екрани Login та Register
+* Використано глобальний стан через AuthContext
+* Реалізовано login, register, logout
+* Захист маршрутів через Redirect
 
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+---
+
+### Навігація (Expo Router)
+
+* File-based routing
+* Використання `_layout.jsx`
+* Групи маршрутів:
+
+  * `(auth)` — публічні екрани
+  * `(app)` — захищені
+
+---
+
+### Каталог товарів
+
+* Відображення списку через FlatList
+* Картка товару:
+
+  * зображення
+  * назва
+  * ціна
+* Кнопка виходу
+
+---
+
+### Деталі товару
+
+* Динамічний маршрут: `[id].jsx`
+* Використано `useLocalSearchParams`
+* Відображення:
+
+  * фото
+  * назва
+  * ціна
+  * опис
+
+---
+
+### Обробка помилок
+
+* Екран `+not-found.jsx`
+* Повідомлення "Екран не знайдено"
+* Кнопка повернення на головну
+
+---
+
+## Скріншоти
+
+### Вхід
+
+![Login](assets/screenshots/login.png)
+
+### Реєстрація
+
+![Register](assets/screenshots/register.png)
+
+### Каталог
+
+![Catalog](assets/screenshots/catalog.png)
+
+### Деталі товару
+
+![Details](assets/screenshots/product-details.png)
+
+---
+
+## Висновки (контрольні питання)
+
+### 1. Redirect неавторизованого користувача
+
+Використовується `<Redirect />` у `_layout.jsx`, де перевіряється `isAuthenticated`.
+
+---
+
+### 2. Link vs router.push()
+
+* `<Link>` — декларативна навігація (через JSX)
+* `router.push()` — імперативна (в коді)
+
+---
+
+### 3. Динамічні маршрути
+
+Файл `[id].jsx` створює динамічний маршрут.
+Параметри отримуються через `useLocalSearchParams()`.
+
+---
+
+### 4. Чому Context
+
+Context дозволяє:
+
+* глобально зберігати стан
+* уникнути передачі props
+* керувати авторизацією з будь-якого екрану
+
+---
+
+### 5. Групи маршрутів
+
+* Використовуються для структури проєкту
+* НЕ впливають на URL
+* Полегшують організацію коду
+
+---
+
+## Автор
+
+Тарасюк Марія Олександрівна, ВТ-22-1
+
+
+---
+
